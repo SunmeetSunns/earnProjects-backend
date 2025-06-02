@@ -7,7 +7,11 @@ require('dotenv').config();
 
 const app = express();
 connectDB();
-app.use(cors())
+app.use(cors({
+  origin: '*', // or use your frontend domain here instead of '*'
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
