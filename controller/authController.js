@@ -23,9 +23,6 @@ exports.sendOtp = async (req, res) => {
     otp,
     createdAt: Date.now()
   };
-
-  console.log("✅ Storing OTP for:", email, otp);
-
   try {
     await sendEmailOtp(email, otp);
     res.status(200).json({ message: "OTP sent to your email" ,Status:200});
@@ -40,9 +37,6 @@ exports.sendOtp = async (req, res) => {
 // ✅ Step 2: Verify OTP with 10-minute expiry
 exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
-  console.log("🔍 Verifying OTP for:", email, otp);
-  console.log("🗃️ Available OTPs:", Object.keys(otpStore));
-
   const record = otpStore[email];
 
   if (!record) {
@@ -142,12 +136,12 @@ exports.login = async (req, res) => {
   const user = await User.findOne({ email: normalizedEmail });
 
   if (!user || !user.password) {
-    return res.status(401).json({ error: "Invalid credentials" ,status:401});
+    return res.status(201).json({ message: "Invalid credentials" ,status:201});
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    return res.status(401).json({ error: "Invalid credentials",status:401 });
+    return res.status(201).json({ message: "Invalid credentials",status:201 });
   }
 
   try {
@@ -160,3 +154,54 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: "Login failed",status:500 });
   }
 };
+exports.sendResetLink = async (req, res) => {
+  const email = req.body.email?.trim().toLowerCase();
+
+  if (!email) return res.status(400).json({ error: "Email is required" });
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  // Create reset token (valid for 15 mins)
+  const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "15m"
+  });
+
+  const resetLink = `http://localhost:4200/reset-password/${resetToken}`;
+
+  try {
+    await sendEmailOtp(email, null, resetLink); // Update sendEmailOtp to support link
+    res.status(200).json({ message: "Reset link sent to your email",status:200 });
+  } catch (err) {
+    console.error("❌ Error sending reset email:", err);
+    res.status(500).json({ error: "Failed to send reset link" });
+  }
+};
+exports.resetPassword = async (req, res) => {
+  const { token, password: newPassword } = req.body;
+
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: "New password is too short" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(201).json({ message: "User not found",status:201 });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.unhashedPassword = newPassword;
+
+    await user.save();
+
+    res.status(200).json({ message: "Password has been reset successfully", status: 200 });
+  } catch (err) {
+    console.error("❌ Reset error:", err);
+    res.status(201).json({ message: "Invalid or expired token", status: 201 });
+  }
+};
+

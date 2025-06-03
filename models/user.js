@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
   havePreference: {
     type: Boolean,
     default: false
-  }
+  },
+  resetToken: String,
+  resetTokenExpiry: Date,
 });
 
 // Prevent model overwrite error in dev (especially with hot reload)
