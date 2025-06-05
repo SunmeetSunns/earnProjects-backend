@@ -8,5 +8,6 @@ router.post('/complete-signup', authController.completeSignup);
 router.post('/login', authController.login);
 router.post('/forgot-password', authController.sendResetLink);
 router.post('/reset-password', authController.resetPassword);
+router.post('/talk-to-expert',authController.talkToExpert)
 
 module.exports = router;

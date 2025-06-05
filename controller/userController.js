@@ -118,3 +118,27 @@ exports.savePreference = async (req, res) => {
   }
 };
 
+// controllers/downloadController.js
+const path = require('path');
+const filesMap = {
+  terms: 'terms-and-conditions.pdf',
+  privacy: 'privacy-policy.pdf',
+  // yaha aur bhi add kar sakti ho
+};
+
+exports.downloadFile = (req, res) => {
+  const fileKey = req.params.fileKey;
+
+  if (!filesMap[fileKey]) {
+    return res.status(404).send('File not found');
+  }
+
+  const filePath = path.join(__dirname, '..', 'files', filesMap[fileKey]);
+
+  res.download(filePath, filesMap[fileKey], (err) => {
+    if (err) {
+      console.error('File download error:', err);
+      res.status(500).send('Could not download the file.');
+    }
+  });
+};
