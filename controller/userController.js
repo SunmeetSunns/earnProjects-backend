@@ -121,8 +121,8 @@ exports.savePreference = async (req, res) => {
 // controllers/downloadController.js
 const path = require('path');
 const filesMap = {
-  terms: 'terms-and-conditions.pdf',
-  privacy: 'privacy-policy.pdf',
+  terms: 'Terms&Conditions.pdf',
+  privacy: 'PrivacyPolicy.pdf',
   // yaha aur bhi add kar sakti ho
 };
 
