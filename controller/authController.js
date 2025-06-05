@@ -46,11 +46,11 @@ exports.verifyOtp = async (req, res) => {
   // Check OTP expiry (10 minutes)
   if (Date.now() - record.createdAt > 600000) {
     delete otpStore[email];
-    return res.status(410).json({ error: 'OTP expired', status: 410 });
+    return res.status(201).json({ message: 'OTP expired', status: 201 });
   }
 
   if (record.otp !== otp) {
-    return res.status(401).json({ error: 'Invalid OTP', status: 401 });
+    return res.status(201).json({ message: 'Invalid OTP', status: 201 });
   }
 
   // Mark OTP as verified in memory (no DB write yet)
@@ -69,13 +69,13 @@ exports.completeSignup = async (req, res) => {
   }
 
   if (password !== confirmPassword) {
-    return res.status(400).json({ error: "Passwords do not match", status: 400 });
+    return res.status(201).json({ message: "Passwords do not match", status: 201 });
   }
 
   // ✅ Check if OTP was verified
   const record = otpStore[email];
   if (!record || !record.isVerified) {
-    return res.status(400).json({ error: "Email not verified. Please verify OTP first.", status: 400 });
+    return res.status(201).json({ message: "Email not verified. Please verify OTP first.", status: 201 });
   }
 
   let user = await User.findOne({ email });
