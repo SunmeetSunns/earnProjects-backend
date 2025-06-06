@@ -65,7 +65,7 @@ exports.completeSignup = async (req, res) => {
   const { email, name, password, confirmPassword, category, mobile } = req.body;
 
   if (!email || !name || !password || !confirmPassword || !category || !mobile) {
-    return res.status(400).json({ error: "All fields are required", status: 400 });
+    return res.status(201).json({ error: "All fields are required", status: 201 });
   }
 
   if (password !== confirmPassword) {
@@ -82,7 +82,7 @@ exports.completeSignup = async (req, res) => {
 
   // ❌ User already signed up fully
   if (user && user.name && user.password) {
-    return res.status(400).json({ error: "User already signed up. Please login.", status: 400 });
+    return res.status(201).json({ error: "User already signed up. Please login.", status: 201 });
   }
 
   try {
@@ -119,7 +119,7 @@ exports.completeSignup = async (req, res) => {
   } catch (err) {
     console.error("Signup error:", err);
     if (err.code === 11000) {
-      return res.status(400).json({ error: "Mobile number already in use", status: 400 });
+      return res.status(201).json({ error: "Mobile number already in use", status: 201 });
     }
     res.status(500).json({ error: "Internal Server Error", status: 500 });
   }
