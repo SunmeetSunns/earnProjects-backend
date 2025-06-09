@@ -2,13 +2,18 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 const generateOtpEmail = require("../templates/otp-template");
 const generateResetPasswordEmail=require("../templates/reset-password.js")
+const generateSubscriptionEmail=require('../templates/send-subscriptionMail.js')
+const generateExpiryReminderEmail=require('../templates/subscribtion-expiry.js')
 
+// Code usage
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT),
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    pass: process.env.EMAIL_PASS
+  }
 });
 
 /**
@@ -40,3 +45,45 @@ exports.sendEmailOtp = async (to, otp = null, resetLink = null) => {
 
   await transporter.sendMail(mailOptions);
 };
+/**
+ * Sends a subscription confirmation email.
+ * @param {string} to - Receiver email
+ * @param {object} sub - Subscription object
+ */
+exports.sendSubscriptionMail = async (to, sub) => {
+  const expiry = new Date(sub.expiryDate).toLocaleDateString();
+  const html = generateSubscriptionEmail(
+    sub.fullFormData?.fullName || 'User',
+    sub.planName,
+    sub.paymentFrequency,
+    expiry
+  );
+  const mailOptions = {
+    from: `EarnProjects <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `🎉 Subscribed to ${sub.planName}!`,
+    html:html
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+/**
+ * Sends a reminder before subscription expiry.
+ * @param {string} to - Receiver email
+ * @param {Date} expiryDate - Subscription expiry date
+ * @param {string} planName - Name of the plan
+ */
+exports.scheduleExpiryEmail = async (to, expiryDate, planName, fullName = 'User') => {
+  const expiry = new Date(expiryDate).toLocaleDateString();
+  const html = generateExpiryReminderEmail(fullName, planName, expiry);
+  const mailOptions = {
+    from: `EarnProjects <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `⏰ Your ${planName} plan expires soon`,
+    html,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+

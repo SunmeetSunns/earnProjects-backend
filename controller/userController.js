@@ -1,6 +1,10 @@
 const Plan = require('../models/plans')
 const Preference = require('../models/userPrefference')
 const MyUser=require('../models/user')
+const Subscription=require('../models/userSubscription')
+const {sendSubscriptionMail}=require('../utils/mailer')
+const nodemailer = require('nodemailer');
+const User=require('../models/user')
 
 exports.submitDetails = async (req, res) => {
   const { fullName, address, collegeName, companyName, agencyName } = req.body;
@@ -141,4 +145,43 @@ exports.downloadFile = (req, res) => {
       res.status(500).send('Could not download the file.');
     }
   });
+};
+
+exports.makeUserPlan = async (req, res) => {
+  try {
+    const { userId, formDataArray, razorpayOrderId, razorpayPaymentId } = req.body;
+    
+    const formData = formDataArray[0];
+    const planDetails = formDataArray[1];
+
+    const planDuration = formData.paymentFrequency === 'Yearly' ? 365 : 30;
+
+    const newSub = new Subscription({
+      user: userId,
+      planName: planDetails.name,
+      category: planDetails.plan,
+      paymentFrequency: formData.paymentFrequency,
+      price: planDetails.amount,
+      discount: planDetails.discount,
+      features: planDetails.features,
+      noOfLeads: planDetails.noOfProj,
+      fullFormData: formData,
+      expiryDate: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000),
+      razorpayOrderId,
+      razorpayPaymentId,
+    });
+
+    await newSub.save();
+
+    // ✅ Update user's planPurchased flag
+    await User.findByIdAndUpdate(userId, { planPurchased: true });
+
+    // ✅ Send confirmation email
+    await sendSubscriptionMail(formData.email, newSub);
+
+    res.status(200).json({ message: '✅ Subscription saved successfully' ,status:200});
+  } catch (err) {
+    console.error('❌', err);
+    res.status(500).json({ message: '❌ Failed to save subscription' });
+  }
 };
