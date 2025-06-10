@@ -158,7 +158,7 @@ exports.sendResetLink = async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required" });
 
   const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!user) return res.status(201).json({ message: "User not found" ,status:201});
 
   // Create reset token (valid for 15 mins)
   const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {

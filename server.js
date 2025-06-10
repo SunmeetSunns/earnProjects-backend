@@ -33,25 +33,41 @@ app.listen(PORT, () => {
 // ⏰ CRON JOB: Check expiring subscriptions daily at 9 AM
 const cron = require('node-cron');
 const Subscription = require('./models/userSubscription');
+const User = require('./models/user'); // 🔁 add user model
 const { scheduleExpiryEmail } = require('./utils/mailer');
 
 cron.schedule('0 9 * * *', async () => {
   console.log('🔁 Checking subscriptions expiring in 3 days...');
+
   try {
     const now = new Date();
-    const target = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days later
 
+    // 🔔 1. Send reminder email for subscriptions expiring in 3 days
+    const target = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const start = new Date(target.setHours(0, 0, 0, 0));
     const end = new Date(target.setHours(23, 59, 59, 999));
 
-    const subs = await Subscription.find({
+    const expiringSoon = await Subscription.find({
       expiryDate: { $gte: start, $lte: end }
     });
 
-    for (const sub of subs) {
+    for (const sub of expiringSoon) {
       await scheduleExpiryEmail(sub.fullFormData.email, sub.expiryDate, sub.planName);
       console.log(`📧 Reminder sent to ${sub.fullFormData.email}`);
     }
+
+    // ⛔ 2. Set planPurchased: false for expired users
+    console.log('🔍 Checking expired plans to update planPurchased=false...');
+
+    const expiredSubs = await Subscription.find({
+      expiryDate: { $lt: now }
+    });
+
+    for (const sub of expiredSubs) {
+      await User.findByIdAndUpdate(sub.user, { planPurchased: false });
+      console.log(`❌ Plan expired for user ${sub.user}, updated planPurchased = false`);
+    }
+
   } catch (err) {
     console.error('❌ Cron job error:', err.message);
   }
