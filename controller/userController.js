@@ -185,3 +185,13 @@ exports.makeUserPlan = async (req, res) => {
     res.status(500).json({ message: '❌ Failed to save subscription' });
   }
 };
+
+exports.findUserPlan=async (req,res)=>{
+  const userId=req.body.userId
+  const userPlan = await Subscription.findOne({ user:userId });
+
+  if(!userPlan) return res.status(404).json({error:'No plan found'})
+  const planPurchased=userPlan
+  res.status(200).json({planPurchased})
+
+}
