@@ -190,7 +190,7 @@ exports.findUserPlan=async (req,res)=>{
   const userId=req.body.userId
   const userPlan = await Subscription.findOne({ user:userId });
 
-  if(!userPlan) return res.status(404).json({error:'No plan found'})
+  if(!userPlan) return res.status(201).json({message:'No plan found',status:201})
   const planPurchased=userPlan
   res.status(200).json({planPurchased})
 
