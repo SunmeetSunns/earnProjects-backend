@@ -7,14 +7,14 @@ const razorpayInstance = new Razorpay({
 });
 
 exports.createOrder = async (req, res) => {
-  const { amount } = req.body;
+  const { amount,currency } = req.body;
 
   if (!amount) return res.status(400).json({ success: false, message: 'Amount is required' });
-
+ if (!currency) return res.status(400).json({ success: false, message: 'Currency is required' });
   try {
     const options = {
       amount: amount * 100, // paise
-      currency: 'INR',
+      currency: currency,
       receipt: 'receipt_' + Date.now(),
     };
 
