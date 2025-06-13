@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "geoip-lite": "^1.4.10",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",
@@ -22,7 +23,8 @@
     "multer": "^2.0.0",
     "node-cron": "^4.1.0",
     "nodemailer": "^7.0.3",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "request-ip": "^3.3.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

@@ -4,7 +4,9 @@ const MyUser=require('../models/user')
 const Subscription=require('../models/userSubscription')
 const {sendSubscriptionMail}=require('../utils/mailer')
 const nodemailer = require('nodemailer');
-const User=require('../models/user')
+const User=require('../models/user');
+const { isUserFromIndia } = require('../utils/locationHelper');
+
 
 exports.submitDetails = async (req, res) => {
   const { fullName, address, collegeName, companyName, agencyName } = req.body;
@@ -39,20 +41,42 @@ exports.submitDetails = async (req, res) => {
 exports.getPlansByCategory = async (req, res) => {
   try {
     const category = req.body.category;
+    const user = req.user || null; // if login logic is used
 
-    let plans;
-    if (!category || category === 'all') {
-      plans = await Plan.find({});
+    const isIndia = isUserFromIndia(req, user);
+    const useUSD = !isIndia && category === 'agency';
+
+    const query = {};
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    if (useUSD) {
+      query.priceUSD = { $exists: true, $ne: null };
     } else {
-      // Case-insensitive category match
-      plans = await Plan.find({ category: category });
+      query.priceINR = { $exists: true, $ne: null };
     }
 
-    if (plans.length === 0) {
-      return res.status(404).json({ message: 'No plans found for this category', Status: 404 });
+    const plans = await Plan.find(query);
+
+    if (!plans.length) {
+      return res.status(404).json({ message: 'No plans found', Status: 404 });
     }
 
-    res.status(200).json({ plans, Status: 200 });
+    const formattedPlans = plans.map(plan => ({
+      planName: plan.planName,
+      planDescription: plan.planDescription,
+      price: useUSD ? plan.priceUSD : plan.priceINR,
+      discount: plan.discount,
+      features: plan.features,
+      category: plan.category,
+      popular: plan.popular,
+      noOfLeads: plan.noOfLeads,
+      currency: useUSD ? 'USD' : 'INR',
+    }));
+
+    res.status(200).json({ plans: formattedPlans, Status: 200 });
+
   } catch (error) {
     console.error('Error fetching plans:', error);
     res.status(500).json({ message: 'Server error', Status: 500 });

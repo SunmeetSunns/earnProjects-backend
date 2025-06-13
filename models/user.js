@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   category: { type: String, required: true, default: 'professional' },
   mobile: { type: String, required: true, unique: true },
+  country_code:{type:String,required:true},
   havePreference: {
     type: Boolean,
     default: false
