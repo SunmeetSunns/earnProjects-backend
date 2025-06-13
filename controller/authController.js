@@ -62,7 +62,7 @@ exports.verifyOtp = async (req, res) => {
 
 // ✅ Step 3: Complete Signup
 exports.completeSignup = async (req, res) => {
-  const { email, name, password, confirmPassword, category, mobile, country_code } = req.body;
+  const { email, name, password, confirmPassword, category, mobile } = req.body;
 
   if (!email || !name || !password || !confirmPassword || !category || !mobile) {
     return res.status(201).json({ error: "All fields are required", status: 201 });
@@ -97,8 +97,7 @@ exports.completeSignup = async (req, res) => {
         unhashedPassword: password,
         category,
         mobile,
-        isVerified: true,
-        country_code
+        isVerified: true
       });
     } else {
       // ✅ Update existing partial user
@@ -108,7 +107,6 @@ exports.completeSignup = async (req, res) => {
       user.category = category;
       user.mobile = mobile;
       user.isVerified = true;
-
     }
 
     await user.save();
@@ -129,10 +127,6 @@ exports.completeSignup = async (req, res) => {
 
 
 // ✅ Step 4: Login
-
-const geoip = require('geoip-lite');
-const requestIp = require('request-ip');
-
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -149,41 +143,22 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const clientIp = requestIp.getClientIp(req);
-    const geo = geoip.lookup(clientIp);
-    const countryCode = geo?.country || 'IN';
-
-    // ✅ Only update if country_code not already saved
-    if (!user.country_code && countryCode) {
-      user.country_code = countryCode;
-      await user.save();
-    }
-
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
-
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user,
-      status: 200,
-    });
-
+    res.status(200).json({ message: "Login successful", token, user, status: 200 });
   } catch (err) {
     console.error("❌ JWT error:", err);
     res.status(500).json({ error: "Login failed", status: 500 });
   }
 };
-
-
 exports.sendResetLink = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
 
   if (!email) return res.status(400).json({ error: "Email is required" });
 
   const user = await User.findOne({ email });
-  if (!user) return res.status(201).json({ message: "User not found", status: 201 });
+  if (!user) return res.status(201).json({ message: "User not found" ,status:201});
 
   // Create reset token (valid for 15 mins)
   const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
@@ -238,15 +213,15 @@ exports.talkToExpert = async (req, res) => {
 
   try {
     // Setup mail transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT),
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT),
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
     // Compose high-priority email
     const mailOptions = {
       from: `"Talk to Expert" <${process.env.EMAIL_USER}>`,
