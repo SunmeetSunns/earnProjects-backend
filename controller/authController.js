@@ -3,60 +3,91 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { sendEmailOtp } = require('../utils/mailer');
 const nodemailer = require('nodemailer');
+const cloudinary = require('../config/cloudinary');
 let otpStore = {}; // Temporary in-memory OTP store
 
-// ✅ Step 1: Send OTP to email
 exports.sendOtp = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
+  const purpose = req.body.purpose || 'signup'; // 'signup' or 'update'
 
   if (!email) return res.status(400).json({ error: "Email is required" });
 
-  // 🔒 Check if user already signed up
   const existingUser = await User.findOne({ email });
-  if (existingUser && existingUser.name && existingUser.password) {
-    return res.status(201).json({ message: "User already exists. Please login.", Status: 201 });
+  if (purpose === 'signup' && existingUser && existingUser.name && existingUser.password) {
+    return res.status(201).json({ message: "User already exists. Please login.", status: 201 });
   }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
   otpStore[email] = {
     otp,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    isVerified: false
   };
+
   try {
-    await sendEmailOtp(email, otp);
-    res.status(200).json({ message: "OTP sent to your email", Status: 200 });
+    await sendEmailOtp(email, otp, null, purpose); // 👈 pass purpose here
+    res.status(200).json({ message: "OTP sent to your email", status: 200 });
   } catch (err) {
     console.error("❌ Error sending OTP:", err);
     res.status(500).json({ error: "Failed to send OTP" });
   }
 };
 
-// ✅ Step 2: Verify OTP with 10-minute expiry
-// Step 2: Verify OTP
-// ✅ Step 2: Verify OTP with 10-minute expiry
+
+// ✅ VERIFY OTP
 exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
   const record = otpStore[email];
 
-  if (!record) {
-    return res.status(400).json({ error: 'No OTP found for this email', status: 400 });
-  }
+  if (!record) return res.status(400).json({ error: 'No OTP found for this email' });
 
-  // Check OTP expiry (10 minutes)
   if (Date.now() - record.createdAt > 600000) {
     delete otpStore[email];
-    return res.status(201).json({ message: 'OTP expired', status: 201 });
+    return res.status(201).json({ message: 'OTP expired' ,status:201});
   }
 
-  if (record.otp !== otp) {
-    return res.status(201).json({ message: 'Invalid OTP', status: 201 });
-  }
+  if (record.otp !== otp) return res.status(201).json({ message: 'Invalid OTP' });
 
-  // Mark OTP as verified in memory (no DB write yet)
   otpStore[email].isVerified = true;
+  res.status(200).json({ message: "OTP verified", verified: true,status:200 });
+};
 
-  res.status(200).json({ message: "OTP verified", verified: true, status: 200 });
+// ✅ UPDATE EMAIL (after OTP verified)
+exports.updateEmail = async (req, res) => {
+  const userId = req.body.userId;
+  const newEmail = req.body.newEmail?.toLowerCase();
+
+  if (!newEmail) {
+    return res.status(201).json({ message: "New email is required", status: 201 });
+  }
+
+  const record = otpStore[newEmail];
+  if (!record?.isVerified) {
+    return res.status(201).json({ message: "Email not verified by OTP", status: 201 });
+  }
+
+  const duplicate = await User.findOne({ email: newEmail });
+  if (duplicate && duplicate._id.toString() !== userId) {
+    return res.status(201).json({ message: "This email is already in use", status: 201 });
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { email: newEmail },
+    { new: true } // return updated document
+  );
+
+  if (!updatedUser) {
+    return res.status(404).json({ message: "User not found", status: 404 });
+  }
+
+  delete otpStore[newEmail];
+
+  res.status(200).json({
+    message: "Email updated successfully",
+    user: updatedUser, // 👈 return updated user
+    status: 200
+  });
 };
 
 
@@ -126,7 +157,41 @@ exports.completeSignup = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error", status: 500 });
   }
 };
+exports.updateUserFields = async (req, res) => {
+  const { userId, name, password, confirmPassword, mobile, category, country_code } = req.body;
 
+  if (!userId) return res.status(400).json({ message: "User ID is required" });
+
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  try {
+    if (password) {
+      if (!confirmPassword || password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      user.password = await bcrypt.hash(password, 10);
+      user.unhashedPassword = password;
+    }
+
+    // Only update fields that are provided
+    if (name) user.name = name;
+    if (mobile) user.mobile = mobile;
+    if (category) user.category = category;
+    if (country_code) user.country_code = country_code;
+
+    await user.save();
+
+    res.status(200).json({ message: "User profile updated successfully", user });
+
+  } catch (err) {
+    console.error("Error updating user:", err);
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "Mobile already in use" });
+    }
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 // ✅ Step 4: Login
 
@@ -280,5 +345,49 @@ exports.talkToExpert = async (req, res) => {
   } catch (error) {
     console.error("❌ Error in talkToExpert:", error);
     return res.status(500).json({ error: "Failed to send email", status: 500 });
+  }
+};
+
+exports.updateProfileMedia = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Delete old profilePic if new one uploaded
+    if (req.files.profilePic) {
+      if (user.profilePic?.public_id) {
+        await cloudinary.uploader.destroy(user.profilePic.public_id);
+      }
+
+      user.profilePic = {
+        url: req.files.profilePic[0].path,
+        public_id: req.files.profilePic[0].filename // keep full name for images
+      };
+    }
+
+    // Delete old resume if new one uploaded
+    if (req.files.resume) {
+      if (user.resume?.public_id) {
+        const publicIdWithoutExt = user.resume.public_id.replace(/\.[^/.]+$/, ""); // removes .pdf, .docx etc
+        await cloudinary.uploader.destroy(publicIdWithoutExt, { resource_type: 'raw' });
+      }
+
+      user.resume = {
+        url: req.files.resume[0].path,
+        public_id: req.files.resume[0].filename // can still store full name
+      };
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      profilePic: user.profilePic?.url,
+      resume: user.resume?.url
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Something went wrong', error: error.message });
   }
 };

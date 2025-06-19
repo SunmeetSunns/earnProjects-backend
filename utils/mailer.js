@@ -4,6 +4,7 @@ const generateOtpEmail = require("../templates/otp-template");
 const generateResetPasswordEmail=require("../templates/reset-password.js")
 const generateSubscriptionEmail=require('../templates/send-subscriptionMail.js')
 const generateExpiryReminderEmail=require('../templates/subscribtion-expiry.js')
+const generateEmailUpdateOtpEmail=require('../templates/generateEmailUpdateOtpEmail.js')
 
 // Code usage
 const transporter = nodemailer.createTransport({
@@ -22,16 +23,21 @@ const transporter = nodemailer.createTransport({
  * @param {string|null} otp - OTP code if needed
  * @param {string|null} resetLink - Password reset link if needed
  */
-exports.sendEmailOtp = async (to, otp = null, resetLink = null) => {
+exports.sendEmailOtp = async (to, otp = null, resetLink = null, purpose = 'signup') => {
   let subject = '';
   let html = '';
 
   if (otp) {
-    subject = 'Your OTP for EarnProjects';
-    html = generateOtpEmail(otp); // keep using your existing OTP template
+    if (purpose === 'update') {
+      subject = 'Confirm Your New Email - EarnProjects';
+      html = generateEmailUpdateOtpEmail(otp); // 👈 new template
+    } else {
+      subject = 'Your OTP for EarnProjects';
+      html = generateOtpEmail(otp); // existing signup OTP template
+    }
   } else if (resetLink) {
     subject = 'Reset Your Password - EarnProjects';
-    html =  generateResetPasswordEmail(resetLink);;
+    html = generateResetPasswordEmail(resetLink);
   } else {
     throw new Error("Either OTP or resetLink must be provided.");
   }
@@ -45,6 +51,7 @@ exports.sendEmailOtp = async (to, otp = null, resetLink = null) => {
 
   await transporter.sendMail(mailOptions);
 };
+
 /**
  * Sends a subscription confirmation email.
  * @param {string} to - Receiver email
