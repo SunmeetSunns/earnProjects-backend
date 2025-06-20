@@ -43,13 +43,13 @@ exports.verifyOtp = async (req, res) => {
 
   if (Date.now() - record.createdAt > 600000) {
     delete otpStore[email];
-    return res.status(201).json({ message: 'OTP expired' ,status:201});
+    return res.status(201).json({ message: 'OTP expired', status: 201 });
   }
 
   if (record.otp !== otp) return res.status(201).json({ message: 'Invalid OTP' });
 
   otpStore[email].isVerified = true;
-  res.status(200).json({ message: "OTP verified", verified: true,status:200 });
+  res.status(200).json({ message: "OTP verified", verified: true, status: 200 });
 };
 
 // ✅ UPDATE EMAIL (after OTP verified)
@@ -158,7 +158,7 @@ exports.completeSignup = async (req, res) => {
   }
 };
 exports.updateUserFields = async (req, res) => {
-  const { userId, name, password, confirmPassword, mobile, category, country_code } = req.body;
+  const { userId, name, password, confirmPassword, mobile, category, country_code, portfolioLink } = req.body;
 
   if (!userId) return res.status(400).json({ message: "User ID is required" });
 
@@ -179,7 +179,7 @@ exports.updateUserFields = async (req, res) => {
     if (mobile) user.mobile = mobile;
     if (category) user.category = category;
     if (country_code) user.country_code = country_code;
-
+    if (portfolioLink) user.portfolioLink = portfolioLink;
     await user.save();
 
     res.status(200).json({ message: "User profile updated successfully", user });

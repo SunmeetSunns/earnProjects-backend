@@ -201,7 +201,7 @@ exports.findUserPlan = async (req, res) => {
 
   if (!userPlan) return res.status(201).json({ message: 'No plan found', status: 201 })
   const planPurchased = userPlan
-  res.status(200).json({ planPurchased })
+  res.status(200).json({ planPurchased ,status:200})
 
 };
 exports.getUserDetails = async (req, res) => {
@@ -225,10 +225,11 @@ exports.getUserDetails = async (req, res) => {
     }
 
     const preference = await Preference.findOne({ userId }).lean();
-
+    const plan=await Plan.findOne({userId}).lean();
     return res.status(200).json({
       message: 'User details fetched successfully',
       user,
+      plan:plan|| null,
       preference: preference || null,
       Status: 200,
     });
