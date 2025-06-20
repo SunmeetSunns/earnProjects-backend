@@ -225,7 +225,7 @@ exports.getUserDetails = async (req, res) => {
     }
 
     const preference = await Preference.findOne({ userId }).lean();
-    const plan=await Plan.findOne({userId}).lean();
+    const plan=await Subscription.findOne({ user: userId })
     return res.status(200).json({
       message: 'User details fetched successfully',
       user,
